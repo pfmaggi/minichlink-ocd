@@ -54,10 +54,7 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
-        "treefmt": "treefmt",
-        "zig": "zig",
-        "zigscient-src": "zigscient-src",
-        "zls-src": "zls-src"
+        "zig": "zig"
       }
     },
     "systems": {
@@ -72,26 +69,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
-        "type": "github"
-      }
-    },
-    "treefmt": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1739829690,
-        "narHash": "sha256-mL1szCeIsjh6Khn3nH2cYtwO5YXG6gBiTw1A30iGeDU=",
-        "owner": "numtide",
-        "repo": "treefmt-nix",
-        "rev": "3d0579f5cc93436052d94b73925b48973a104204",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "treefmt-nix",
         "type": "github"
       }
     },
@@ -116,40 +93,6 @@
       "original": {
         "owner": "mitchellh",
         "repo": "zig-overlay",
-        "type": "github"
-      }
-    },
-    "zigscient-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1741507617,
-        "narHash": "sha256-hFDfns/xIARaD1uUWs7rhIecKpl0FB0d76UT6DMhyFU=",
-        "owner": "llogick",
-        "repo": "zigscient",
-        "rev": "6d00b14348b96818cd7545a97a4b3938cefbb469",
-        "type": "github"
-      },
-      "original": {
-        "owner": "llogick",
-        "ref": "0.14.x",
-        "repo": "zigscient",
-        "type": "github"
-      }
-    },
-    "zls-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1741303397,
-        "narHash": "sha256-A5Mn+mfIefOsX+eNBRHrDVkqFDVrD3iXDNsUL4TPhKo=",
-        "owner": "zigtools",
-        "repo": "zls",
-        "rev": "7485feeeda45d1ad09422ae83af73307ab9e6c9e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "zigtools",
-        "ref": "0.14.0",
-        "repo": "zls",
         "type": "github"
       }
     }

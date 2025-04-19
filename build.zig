@@ -22,7 +22,7 @@ pub fn build(b: *std.Build) !void {
     const install_minichlink_lib = b.addInstallArtifact(minichlink_lib, .{});
     build_lib.dependOn(&install_minichlink_lib.step);
 
-    const minichlink_ocd = buildMinichlinkOcd(b, target, optimize, minichlink_lib);
+    const minichlink_ocd = try buildMinichlinkOcd(b, target, optimize, minichlink_lib);
 
     const run_step = b.step("run", "Run the minichlink-ocd");
     const ocd_run = b.addRunArtifact(minichlink_ocd);
@@ -48,7 +48,7 @@ fn buildMinichlink(
     optimize: std.builtin.OptimizeMode,
 ) !*std.Build.Step.Compile {
     const libusb_dep = b.dependency("libusb", .{});
-    const libusb = createLibusb(b, libusb_dep, target, optimize);
+    const libusb = try createLibusb(b, libusb_dep, target, optimize);
 
     const minichlink_dep = b.dependency("ch32v003fun", .{});
     const minichlink = try createMinichlink(b, minichlink_dep, kind, target, optimize);
@@ -121,6 +121,8 @@ fn createMinichlink(
         else => {},
     }
 
+    try addPaths(exe.root_module, target);
+
     return exe;
 }
 
@@ -133,7 +135,7 @@ fn createLibusb(
     dep: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-) *std.Build.Step.Compile {
+) !*std.Build.Step.Compile {
     const is_posix = target.result.os.tag != .windows;
     const config_header = b.addConfigHeader(.{ .style = .blank }, .{
         ._GNU_SOURCE = 1,
@@ -231,7 +233,7 @@ fn createLibusb(
                     "linux_udev.c",
                 },
             });
-            lib.linkSystemLibrary("udev");
+            lib.linkSystemLibrary2("udev", .{ .use_pkg_config = .no });
         },
         .windows => {
             lib.addCSourceFiles(.{
@@ -259,6 +261,8 @@ fn createLibusb(
         else => {},
     }
 
+    try addPaths(lib.root_module, target);
+
     return lib;
 }
 
@@ -267,7 +271,7 @@ fn buildMinichlinkOcd(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     minichlink_lib: *std.Build.Step.Compile,
-) *std.Build.Step.Compile {
+) !*std.Build.Step.Compile {
     const minichlink_dep = b.dependency("ch32v003fun", .{});
     const minichlink_root_path = minichlink_dep.path("minichlink");
 
@@ -295,6 +299,8 @@ fn buildMinichlinkOcd(
     ocd.addIncludePath(minichlink_root_path);
     ocd.addIncludePath(b.path("src"));
     ocd.addCSourceFile(.{ .file = b.path(minichlink_main_file.dest_rel_path) });
+
+    try addPaths(ocd.root_module, target);
 
     b.getInstallStep().dependOn(&b.addInstallArtifact(ocd, .{ .dest_dir = .{ .override = .{ .custom = b.pathJoin(&.{ "bin", "ocd", "bin" }) } } }).step);
     b.getInstallStep().dependOn(&b.addInstallFileWithDir(.{ .cwd_relative = "wch-riscv.cfg" }, .{ .custom = b.pathJoin(&.{ "bin", "ocd", "share", "openocd", "scripts", "board" }) }, "wch-riscv.cfg").step);
@@ -369,6 +375,17 @@ const CopyAndPatchMinichlinkMainFile = struct {
             \\#include "terminalhelp.h"
             \\#include "minichlink.h"
             \\
+            \\#if defined(WINDOWS) || defined(WIN32) || defined(_WIN32)
+            \\extern int isatty(int);
+            \\#if !defined(_SYNCHAPI_H_) && !defined(__TINYC__)
+            \\void Sleep(uint32_t dwMilliseconds);
+            \\#endif
+            \\#else
+            \\#include <pwd.h>
+            \\#include <unistd.h>
+            \\#include <grp.h>
+            \\#endif
+            \\
             \\static int64_t StringToMemoryAddress( const char * number ) __attribute__((used));
             \\void PostSetupConfigureInterface( void * dev );
             \\
@@ -413,4 +430,43 @@ fn findFunction(buf: []const u8, name: []const u8) ?struct { usize, usize } {
     const func_end_offset = maybe_func_end_offset orelse return null;
 
     return .{ func_start, func_start + func_end_offset };
+}
+
+pub fn addPaths(mod: *std.Build.Module, target: std.Build.ResolvedTarget) !void {
+    const b = mod.owner;
+
+    const paths = try std.zig.system.NativePaths.detect(b.allocator, target.result);
+
+    for (paths.lib_dirs.items) |item| {
+        std.fs.cwd().access(item, .{}) catch |e| switch (e) {
+            error.FileNotFound => continue,
+            else => return e,
+        };
+
+        mod.addLibraryPath(.{ .cwd_relative = item });
+    }
+    for (paths.include_dirs.items) |item| {
+        std.fs.cwd().access(item, .{}) catch |e| switch (e) {
+            error.FileNotFound => continue,
+            else => return e,
+        };
+
+        mod.addSystemIncludePath(.{ .cwd_relative = item });
+    }
+    for (paths.framework_dirs.items) |item| {
+        std.fs.cwd().access(item, .{}) catch |e| switch (e) {
+            error.FileNotFound => continue,
+            else => return e,
+        };
+
+        mod.addSystemFrameworkPath(.{ .cwd_relative = item });
+    }
+    for (paths.rpaths.items) |item| {
+        std.fs.cwd().access(item, .{}) catch |e| switch (e) {
+            error.FileNotFound => continue,
+            else => return e,
+        };
+
+        mod.addRPath(.{ .cwd_relative = item });
+    }
 }

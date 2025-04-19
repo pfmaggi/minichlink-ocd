@@ -7,91 +7,121 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-linux:
     if: github.repository_owner == 'ghostiam' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
         with:
-          fetch-depth: 0 # required to resolve the version string
-
-      - uses: mlugg/setup-zig@v1
-        with:
-          version: 0.14.0
-
-      - name: Install APT packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install libudev-dev
-
-      - name: Build all targets
+          nix_path: nixpkgs=channel:nixos-unstable
+      - run: nix flake check
+      - name: Build targets
         run: |
           mkdir -p builds
-          for target in "x86_64-linux" "aarch64-linux" "x86_64-windows" "aarch64-windows" "x86_64-macos" "aarch64-macos"; do
-          zig build -Dcpu=baseline -Dtarget=${target} -Doptimize=ReleaseFast
-          if [[ $target == *"windows"* ]]; then
-           cp zig-out/bin/zig_ci_test.exe builds/zig_ci_test-${target}.exe
-          else
-           cp zig-out/bin/zig_ci_test builds/zig_ci_test-${target}
-          fi
+          
+          for target in "x86_64-linux-gnu" "aarch64-linux-gnu" "x86_64-windows" "aarch64-windows"; do
+            rm -rf zig-out
+          
+            if [[ $target == "aarch64-linux-gnu" ]]; then
+              nix develop .#cross-aarch64 -c zig build --verbose -Dcpu=baseline -Doptimize=ReleaseFast -Dtarget=${target}
+            else
+              nix develop .#cross-amd64 -c zig build --verbose -Dcpu=baseline -Doptimize=ReleaseFast -Dtarget=${target}
+            fi
+          
+            if [[ $target == *"windows"* ]]; then
+              cp zig-out/bin/minichlink.exe builds/minichlink-${target}.exe
+            else
+              cp zig-out/bin/minichlink builds/minichlink-${target}
+            fi
+            cp -r zig-out/bin/ocd builds/minichlink-ocd-${target}
           done
           
-          cd builds
-          cat <<EOF > release
-          # sha256sum
-          
-          \`\`\`
-          $(sha256sum *)
-          \`\`\`
-          EOF
-          
-          grep "^ *\.version =" ../build.zig.zon | awk -F\" '{print $2}' > version
-          
-          ls -la ../*
+          grep "^ *\.version =" build.zig.zon | awk -F\" '{print $2}' > builds/version
       - uses: actions/upload-artifact@v4
         with:
-          name: zig_ci_test
+          name: builds-linux
+          path: builds/
+
+  build-macos:
+    if: github.repository_owner == 'ghostiam' && github.ref == 'refs/heads/master'
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - run: nix flake check
+      - name: Build targets
+        run: |
+          mkdir -p builds
+          
+          for target in "x86_64-macos" "aarch64-macos"; do
+            rm -rf zig-out
+            nix develop -c zig build --verbose -Dcpu=baseline -Doptimize=ReleaseFast -Dtarget=${target}
+          
+            if [[ $target == *"windows"* ]]; then
+              cp zig-out/bin/minichlink.exe builds/minichlink-${target}.exe
+            else
+              cp zig-out/bin/minichlink builds/minichlink-${target}
+            fi
+            cp -r zig-out/bin/ocd builds/minichlink-ocd-${target}
+          done
+          
+          grep "^ *\.version =" build.zig.zon | awk -F\" '{print $2}' > builds/version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: builds-macos
           path: builds/
 
   release:
-    needs: build
+    needs: [ build-linux, build-macos ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: zig_ci_test
-          path: zig_ci_test
+          name: builds-linux
+          path: builds-linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: builds-macos
+          path: builds-macos
       - name: Get project version
         run: |
-          cd zig_ci_test
+          cd builds-linux
           echo "PROJECT_VERSION=$(cat version)" >> $GITHUB_ENV
           cat $GITHUB_ENV
       - name: Create zips
         run: |
-          cd zig_ci_test
-          skip_files=("version" "release")
-          for file in *; do
-            if [[ " ${skip_files[@]} " =~ " $file " ]]; then
-              continue
-            fi
+          for target_dir in "builds-macos" "builds-linux"; do
+            cd ${target_dir}
           
-            chmod +x "$file"
+            skip_files=("version")
+            for file in *; do
+              if [[ " ${skip_files[@]} " =~ " $file " ]]; then
+                continue
+              fi
           
-            if [[ $file == *"windows"* ]]; then
-              zip -j "../${file%.*}.zip" "$file"
-              sha256sum "../${file%.*}.zip" | awk '{print $1}' >> "../${file%.*}.zip.sha256"
-            else
-              tar -czf "../${file%.*}.tar.gz" "$file"
-              sha256sum "../${file%.*}.tar.gz" | awk '{print $1}' >> "../${file%.*}.tar.gz.sha256"
-            fi
+              chmod +x "$file"
+          
+              if [[ $file == *"windows"* ]]; then
+                zip -j "../${file%.*}.zip" "$file"
+                sha256sum "../${file%.*}.zip" | awk '{print $1}' >> "../${file%.*}.zip.sha256"
+              else
+                tar -czf "../${file%.*}.tar.gz" "$file"
+                sha256sum "../${file%.*}.tar.gz" | awk '{print $1}' >> "../${file%.*}.tar.gz.sha256"
+              fi
+          
+              cd ..
+            done
           done
       - uses: softprops/action-gh-release@v2
         with:
           name: ${{ env.PROJECT_VERSION }}
           tag_name: ${{ env.PROJECT_VERSION }}
-          body_path: zig_ci_test/release
+          # body_path: builds-linux/release
           draft: false
           make_latest: true
           files: "*.zip\n*.tar.gz\n*.sha256"
