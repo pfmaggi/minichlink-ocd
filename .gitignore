@@ -1,0 +1,6 @@
+.zig-cache/
+zig-out/
+.idea/
+.nix_bash_history
+*.iml
+src/minichlink-patched.c
