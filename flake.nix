@@ -40,6 +40,7 @@
           [
             zig
             pkg-config
+            coreutils
           ];
 
         baseShellHook = ''
