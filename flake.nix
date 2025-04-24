@@ -80,6 +80,38 @@
             shellHook = default.shellHook;
           };
         };
+        packages = with pkgs; {
+          default = pkgs.stdenv.mkDerivation {
+            name = "minichlink-ocd";
+            src = ./.;
+            nativeBuildInputs =
+              [
+                zig
+              ]
+              ++ lib.optionals stdenv.hostPlatform.isLinux [
+                udev
+              ]
+              ++ lib.optionals stdenv.hostPlatform.isDarwin [
+                apple-sdk_14
+              ];
+
+            phases = [
+              "unpackPhase"
+              "buildPhase"
+            ];
+            buildPhase =
+              pkgs.lib.optionalString stdenv.isDarwin ''
+                export NIX_CFLAGS_COMPILE="-iframework $SDKROOT/System/Library/Frameworks -isystem $SDKROOT/usr/include $NIX_CFLAGS_COMPILE"
+                export NIX_LDFLAGS="-L$SDKROOT/usr/lib $NIX_LDFLAGS"
+              ''
+              + ''
+                mkdir -p .cache
+                zig build --cache-dir $(pwd)/.zig-cache --global-cache-dir $(pwd)/.cache -Dcpu=baseline --prefix $out
+                mv $out/bin/ocd/bin/minichlink-ocd $out/bin/
+                mv $out/bin/ocd/share $out/share
+              '';
+          };
+        };
       }
     );
 }
