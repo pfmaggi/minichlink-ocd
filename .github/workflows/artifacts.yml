@@ -31,10 +31,10 @@ jobs:
           
             if [[ $target == *"windows"* ]]; then
              (cd "zig-out" ; zip -r "../builds/minichlink_ocd-${target}.zip" ".")
-             sha256sum "builds/minichlink_ocd-${target}.zip" | awk '{print $1}' >> "builds/minichlink_ocd-${target}.zip.sha256"
+             sha256sum "builds/minichlink_ocd-${target}.zip" >> "builds/minichlink_ocd-${target}.zip.sha256"
             else
               tar -czf "builds/minichlink_ocd-${target}.tar.gz" -C "zig-out" "bin" "share"
-              sha256sum "builds/minichlink_ocd-${target}.tar.gz" | awk '{print $1}' >> "builds/minichlink_ocd-${target}.tar.gz.sha256"
+              sha256sum "builds/minichlink_ocd-${target}.tar.gz" >> "builds/minichlink_ocd-${target}.tar.gz.sha256"
             fi
           done
           
@@ -62,7 +62,7 @@ jobs:
             nix develop -c zig build --verbose -Dcpu=baseline -Doptimize=ReleaseFast -Dtarget=${target}
           
             tar -czf "builds/minichlink_ocd-${target}.tar.gz" -C "zig-out" "bin" "share"
-            shasum --algorithm 256 "builds/minichlink_ocd-${target}.tar.gz" | awk '{print $1}' >> "builds/minichlink_ocd-${target}.tar.gz.sha256"
+            shasum --algorithm 256 "builds/minichlink_ocd-${target}.tar.gz" >> "builds/minichlink_ocd-${target}.tar.gz.sha256"
           done
       - uses: actions/upload-artifact@v4
         with:
