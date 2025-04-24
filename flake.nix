@@ -107,8 +107,6 @@
               + ''
                 mkdir -p .cache
                 zig build --cache-dir $(pwd)/.zig-cache --global-cache-dir $(pwd)/.cache -Dcpu=baseline --prefix $out
-                mv $out/bin/ocd/bin/minichlink-ocd $out/bin/
-                mv $out/bin/ocd/share $out/share
               '';
           };
         };

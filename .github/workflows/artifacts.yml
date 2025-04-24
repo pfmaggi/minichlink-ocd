@@ -30,16 +30,10 @@ jobs:
             fi
           
             if [[ $target == *"windows"* ]]; then
-             (cd "zig-out/bin" ; zip -j "../../builds/minichlink-${target}.zip" "minichlink.exe")
-             sha256sum "builds/minichlink-${target}.zip" | awk '{print $1}' >> "builds/minichlink-${target}.zip.sha256"
-          
-             (cd "zig-out/bin/ocd" ; zip -r "../../../builds/minichlink_ocd-${target}.zip" ".")
+             (cd "zig-out" ; zip -r "../builds/minichlink_ocd-${target}.zip" ".")
              sha256sum "builds/minichlink_ocd-${target}.zip" | awk '{print $1}' >> "builds/minichlink_ocd-${target}.zip.sha256"
             else
-              tar -czf "builds/minichlink-${target}.tar.gz" -C "zig-out/bin" "minichlink"
-              sha256sum "builds/minichlink-${target}.tar.gz" | awk '{print $1}' >> "builds/minichlink-${target}.tar.gz.sha256"
-          
-              tar -czf "builds/minichlink_ocd-${target}.tar.gz" -C "zig-out/bin/ocd" "bin" "share"
+              tar -czf "builds/minichlink_ocd-${target}.tar.gz" -C "zig-out" "bin" "share"
               sha256sum "builds/minichlink_ocd-${target}.tar.gz" | awk '{print $1}' >> "builds/minichlink_ocd-${target}.tar.gz.sha256"
             fi
           done
@@ -67,10 +61,7 @@ jobs:
             rm -rf zig-out
             nix develop -c zig build --verbose -Dcpu=baseline -Doptimize=ReleaseFast -Dtarget=${target}
           
-            tar -czf "builds/minichlink-${target}.tar.gz" -C "zig-out/bin" "minichlink"
-            shasum --algorithm 256 "builds/minichlink-${target}.tar.gz" | awk '{print $1}' >> "builds/minichlink-${target}.tar.gz.sha256"
-          
-            tar -czf "builds/minichlink_ocd-${target}.tar.gz" -C "zig-out/bin/ocd" "bin" "share"
+            tar -czf "builds/minichlink_ocd-${target}.tar.gz" -C "zig-out" "bin" "share"
             shasum --algorithm 256 "builds/minichlink_ocd-${target}.tar.gz" | awk '{print $1}' >> "builds/minichlink_ocd-${target}.tar.gz.sha256"
           done
       - uses: actions/upload-artifact@v4
