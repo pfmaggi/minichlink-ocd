@@ -50,7 +50,7 @@ fn buildMinichlink(
     const libusb_dep = b.dependency("libusb", .{});
     const libusb = try createLibusb(b, libusb_dep, target, optimize);
 
-    const minichlink_dep = b.dependency("ch32v003fun", .{});
+    const minichlink_dep = b.dependency("ch32fun", .{});
     const minichlink = try createMinichlink(b, minichlink_dep, kind, target, optimize);
     minichlink.linkLibrary(libusb);
 
@@ -272,7 +272,7 @@ fn buildMinichlinkOcd(
     optimize: std.builtin.OptimizeMode,
     minichlink_lib: *std.Build.Step.Compile,
 ) !*std.Build.Step.Compile {
-    const minichlink_dep = b.dependency("ch32v003fun", .{});
+    const minichlink_dep = b.dependency("ch32fun", .{});
     const minichlink_root_path = minichlink_dep.path("minichlink");
 
     const ocd = b.addExecutable(.{

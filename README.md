@@ -1,7 +1,7 @@
 # minichlink-ocd
 
 The official repository used as a dependency for building with the Zig compiler is located here:  
-https://github.com/cnlohr/ch32v003fun/tree/master/minichlink
+https://github.com/cnlohr/ch32fun/tree/master/minichlink
 
 ## Information
 
