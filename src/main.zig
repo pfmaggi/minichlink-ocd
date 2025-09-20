@@ -33,12 +33,15 @@ pub fn main() !u8 {
         const version = try versionFromZon(allocator);
         defer versionFromZonFree(allocator, version);
 
-        const stderr = std.io.getStdErr().writer();
+        var stderr_buffer: [1024]u8 = undefined;
+        var stderr_writer = std.fs.File.stderr().writer(&stderr_buffer);
+        const stderr = &stderr_writer.interface;
         try stderr.print("Minichlink As Open On-Chip Debugger {s}\n", .{version.version});
+        try stderr.flush();
         return 0;
     }
 
-    var minichlink_args = std.ArrayList([*:0]u8).init(allocator);
+    var minichlink_args = std.array_list.AlignedManaged([*:0]u8, null).init(allocator);
     defer minichlink_args.deinit();
     try minichlink_args.append(args[0]);
 
@@ -84,8 +87,12 @@ pub fn main() !u8 {
     }
 
     if (ocd_args.echo) |echo| {
-        const stderr = std.io.getStdErr().writer();
+        var stderr_buffer: [1024]u8 = undefined;
+        var stderr_writer = std.fs.File.stderr().writer(&stderr_buffer);
+        const stderr = &stderr_writer.interface;
+
         try stderr.writeAll(echo);
+        try stderr.flush();
     }
 
     const argv: [][*:0]u8 = @constCast(minichlink_args.items);
